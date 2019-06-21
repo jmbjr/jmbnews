@@ -1,10 +1,11 @@
 import React, { Component } from "react";
 import "./App.css";
 
-const DEFAULT_QUERY = "react";
+const DEFAULT_QUERY = "redux";
 const PATH_BASE = "https://hn.algolia.com/api/v1";
 const PATH_SEARCH = "/search";
 const PARAM_SEARCH = "query=";
+const PARAM_PAGE = "page=";
 
 const largeColumn = {
   width: "40%"
@@ -18,17 +19,33 @@ const smallColumn = {
   width: "10%"
 };
 
-const isSearched = searchTerm => item =>
-  item.title.toLowerCase().includes(searchTerm.toLowerCase());
-
 class App extends Component {
   constructor(props) {
     super(props);
     this.state = { result: null, searchTerm: DEFAULT_QUERY };
   }
 
+  onSearchSubmit = event => {
+    const { searchTerm } = this.state;
+    this.fetchSearchTopStories(searchTerm);
+    event.preventDefault();
+  };
+
+  fetchSearchTopStories = (searchTerm, page = 0) => {
+    fetch(
+      `${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${searchTerm}${PARAM_PAGE}${page}`
+    )
+      .then(response => response.json())
+      .then(result => this.setSearchTopStories(result))
+      .catch(error => error);
+  };
+
   setSearchTopStories = result => {
-    this.setState({ result });
+    const { hits, page } = result;
+    const oldHits = page !== 0 ? this.state.result.hits : [];
+    const updatedHits = [...oldHits, ...hits];
+
+    this.setState({ result: { hits: updatedHits, page } });
   };
 
   onSearchChange = event => {
@@ -47,51 +64,51 @@ class App extends Component {
 
   componentDidMount() {
     const { searchTerm } = this.state;
-
-    fetch(`${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${searchTerm}`)
-      .then(response => response.json())
-      .then(result => this.setSearchTopStories(result))
-      .catch(error => error);
+    this.fetchSearchTopStories(searchTerm);
   }
 
   render() {
     const { searchTerm, result } = this.state;
-    if (!result) {
-      return null;
-    }
-
+    const page = (result && result.page) || 0;
     return (
       <div className="page">
         <div className="interactions">
-          <Search value={searchTerm} onChange={this.onSearchChange}>
+          <Button
+            onClick={() => this.fetchSearchTopStories(searchTerm, page + 1)}
+          >
+            Next Page
+          </Button>
+          <Search
+            value={searchTerm}
+            onChange={this.onSearchChange}
+            onSubmit={this.onSearchSubmit}
+          >
             Search
           </Search>
         </div>
-        <Table
-          list={result.hits}
-          pattern={searchTerm}
-          onDismiss={this.onDismiss}
-        />
+        {result ? (
+          <Table list={result.hits} onDismiss={this.onDismiss} />
+        ) : null}
       </div>
     );
   }
 }
 
-const Search = ({ value, onChange, children }) => {
+const Search = ({ value, onChange, onSubmit, children }) => {
   // do something. This and the return are not needed if you don't need to do something
   return (
-    <form>
-      {children}
+    <form onSubmit={onSubmit}>
       <input type="text" value={value} onChange={onChange} />
+      <button type="submit"> {children}</button>
     </form>
   );
 };
 
-const Table = ({ list, pattern, onDismiss }) => {
+const Table = ({ list, onDismiss }) => {
   // do something
   return (
     <div className="table">
-      {list.filter(isSearched(pattern)).map(item => (
+      {list.map(item => (
         <div key={item.objectID} className="table-row">
           <span style={largeColumn}>
             <a href={item.url}>{item.title} </a>
