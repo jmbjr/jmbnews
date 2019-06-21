@@ -127,9 +127,10 @@ const Search = ({ value, onChange, onSubmit, children }) => {
 
 const Table = ({ list, onDismiss }) => {
   // do something
+  const notNullList = list.filter(hit => hit.url);
   return (
     <div className="table">
-      {list.map(item => (
+      {notNullList.map(item => (
         <div key={item.objectID} className="table-row">
           <span style={largeColumn}>
             <a href={item.url}>{item.title} </a>
